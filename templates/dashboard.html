@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1 class="display-5 fw-bold mb-3">Analytics Dashboard</h1>
+            <p class="lead text-secondary">Statistical insights from the student performance dataset</p>
+        </div>
+    </div>
+    
+    <!-- Key Metrics Row -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-value">{{ stats.total_students }}</div>
+                <div class="stat-label">Total Students in Dataset</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-value">{{ "%.1f"|format(stats.avg_score) }}</div>
+                <div class="stat-label">Average Exam Score</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-value">{{ stats.pass_rate }}%</div>
+                <div class="stat-label">Pass Rate (Score ≥ 50)</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-value">{{ stats.excellent_rate }}%</div>
+                <div class="stat-label">Excellence Rate (Score ≥ 85)</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Score Range Metrics -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-4 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon text-success">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <div class="stat-value text-success">{{ "%.1f"|format(stats.highest_score) }}</div>
+                <div class="stat-label">Highest Score Achieved</div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon text-info">
+                    <i class="fas fa-chart-simple"></i>
+                </div>
+                <div class="stat-value text-info">{{ "%.1f"|format(stats.avg_score) }}</div>
+                <div class="stat-label">Mean Score</div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon text-danger">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+                <div class="stat-value text-danger">{{ "%.1f"|format(stats.lowest_score) }}</div>
+                <div class="stat-label">Lowest Score Recorded</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Row -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    <h5 class="mb-0">Score Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="scoreChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    <h5 class="mb-0">Performance Categories</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Habits Impact Chart -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-chart-line me-2"></i>
+                    <h5 class="mb-0">Habit Impact Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="habitsChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Average Habits Section -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-3 col-md-6">
+            <div class="habit-card">
+                <div class="habit-icon">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <div class="habit-value">{{ "%.1f"|format(stats.avg_study) }}</div>
+                <div class="habit-label">Average Study Hours/Day</div>
+                <div class="habit-recommendation">Recommended: 4-5 hours</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="habit-card">
+                <div class="habit-icon">
+                    <i class="fas fa-moon"></i>
+                </div>
+                <div class="habit-value">{{ "%.1f"|format(stats.avg_sleep) }}</div>
+                <div class="habit-label">Average Sleep Hours/Night</div>
+                <div class="habit-recommendation">Recommended: 7-8 hours</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="habit-card">
+                <div class="habit-icon">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <div class="habit-value">{{ "%.1f"|format(stats.avg_social) }}</div>
+                <div class="habit-label">Average Social Media Hours</div>
+                <div class="habit-recommendation">Recommended: Under 2 hours</div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="habit-card">
+                <div class="habit-icon">
+                    <i class="fas fa-person-running"></i>
+                </div>
+                <div class="habit-value">{{ "%.1f"|format(stats.avg_exercise) }}</div>
+                <div class="habit-label">Average Exercise Days/Week</div>
+                <div class="habit-recommendation">Recommended: 3+ days</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Model Information Card -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-microchip me-2"></i>
+            <h5 class="mb-0">Model Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="model-metric">
+                        <div class="model-metric-label">Algorithm</div>
+                        <div class="model-metric-value">{{ model_info.type }}</div>
+                    </div>
+                    <div class="model-metric mt-3">
+                        <div class="model-metric-label">R² Score</div>
+                        <div class="model-metric-value">{{ "%.4f"|format(model_info.r2_score) }}</div>
+                    </div>
+                    <div class="model-metric mt-3">
+                        <div class="model-metric-label">Mean Absolute Error</div>
+                        <div class="model-metric-value">{{ "%.2f"|format(model_info.mae) }} points</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="model-metric">
+                        <div class="model-metric-label">Features Used</div>
+                        <div class="model-metric-value">{{ model_info.features|join(", ") }}</div>
+                    </div>
+                    <div class="model-metric mt-3">
+                        <div class="model-metric-label">Training Data Size</div>
+                        <div class="model-metric-value">800 student records</div>
+                    </div>
+                    <div class="model-metric mt-3">
+                        <div class="model-metric-label">Test Data Size</div>
+                        <div class="model-metric-value">200 student records</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartColors = {
+        primary: '#6366f1',
+        success: '#10b981',
+        warning: '#f59e0b',
+        danger: '#ef4444',
+        info: '#06b6d4'
+    };
+
+    // Score Distribution Chart
+    fetch('/api/score-distribution')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.bins,
+                    datasets: [{
+                        label: 'Number of Students',
+                        data: data.counts,
+                        backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                        borderColor: '#6366f1',
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { 
+                            callbacks: { 
+                                label: function(context) { 
+                                    return context.raw + ' students';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(71, 85, 105, 0.2)' }
+                        },
+                        x: { 
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(err => console.error('Error loading score distribution:', err));
+
+    // Category Distribution Chart
+    fetch('/api/category-distribution')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.counts,
+                        backgroundColor: ['#10b981', '#06b6d4', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', padding: 15 }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(err => console.error('Error loading category distribution:', err));
+
+    // Habits Impact Chart
+    fetch('/api/habits-impact')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('habitsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.groups,
+                    datasets: [
+                        {
+                            label: 'Low Habit Group',
+                            data: data.low_scores,
+                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                            borderRadius: 8
+                        },
+                        {
+                            label: 'High Habit Group',
+                            data: data.high_scores,
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                            borderRadius: 8
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: '#94a3b8' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' points';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Average Exam Score', color: '#94a3b8' },
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(71, 85, 105, 0.2)' }
+                        },
+                        x: { 
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(err => console.error('Error loading habits impact:', err));
+});
+</script>
+
+<style>
+.habit-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(30, 41, 59, 0.5));
+    border: 1px solid var(--dark-border);
+    border-radius: 20px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.habit-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.habit-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.2));
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+}
+
+.habit-icon i {
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.habit-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.habit-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.habit-recommendation {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.model-metric {
+    padding: 0.75rem;
+    background: rgba(51, 65, 85, 0.3);
+    border-radius: 12px;
+}
+
+.model-metric-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.model-metric-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-light);
+}
+</style>
+{% endblock %}
