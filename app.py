@@ -6,66 +6,46 @@ from datetime import datetime
 import sqlite3
 import os
 import logging
+import json
 
-# Setup logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-key-change-in-production')
 
-# Model information (to display on dashboard)
-MODEL_INFO = {
-    'type': 'Linear Regression',
-    'r2_score': 0.9012,
-    'mae': 4.41,
-    'rmse': 5.46,
-    'features': ['Study Hours', 'Sleep Hours', 'Social Media', 'Netflix', 'Exercise', 'Mental Health', 'Age'],
-    'feature_importance': {
-        'Study Hours/Day': 13.84,
-        'Mental Health Rating': 5.55,
-        'Exercise Frequency': 2.90,
-        'Sleep Hours': 2.44,
-        'Netflix Hours': -2.50,
-        'Social Media Hours': -3.04,
-        'Age': -0.05
-    }
-}
+BASE = os.path.dirname(__file__)
+DATA_CSV = os.path.join(BASE, "data", "student_data_cleaned.csv")
+DB = os.path.join(BASE, 'predictions.db')
 
-# Load model
-MODEL_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "models",
-    "student_model.pkl"
-)
+# model_info.json is made by train_model.py
+try:
+    with open(os.path.join(BASE, "models", "model_info.json")) as f:
+        MODEL_INFO = json.load(f)
+except FileNotFoundError:
+    print("model_info.json not found, run train_model.py first")
+    MODEL_INFO = {'type': 'Not trained', 'r2_score': 0, 'mae': 0, 'rmse': 0,
+                  'features': [], 'feature_importance': {}}
 
-# Load model with error handling
+MODEL_PATH = os.path.join(BASE, "models", "student_model.pkl")
 try:
     pipeline = joblib.load(MODEL_PATH)
-    print("Model loaded successfully:", type(pipeline))
+    print("model loaded")
 except FileNotFoundError:
-    print(f"ERROR: Model not found at {MODEL_PATH}")
-    print("Please train the model using preprocessing_02.ipynb first.")
-    pipeline = None
-except (EOFError, ValueError) as e:
-    print(f"ERROR loading model (corrupted file): {e}")
+    print("model not found, run train_model.py first")
     pipeline = None
 except Exception as e:
-    print(f"ERROR loading model: {type(e).__name__}: {e}")
+    print("could not load model:", e)
     pipeline = None
 
-# Feature names - MUST MATCH your training features
-FEATURE_NAMES = [
-    'age', 'study_hours_per_day', 'social_media_hours',
-    'netflix_hours', 'sleep_hours', 'exercise_frequency',
-    'mental_health_rating'
-]
+# same order as train_model.py
+FEATURE_NAMES = ['age', 'study_hours_per_day', 'social_media_hours', 'netflix_hours',
+                 'sleep_hours', 'exercise_frequency', 'mental_health_rating']
 
-# Database setup
+
 def init_db():
-    conn = sqlite3.connect('predictions.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS predictions
+    conn = sqlite3.connect(DB)
+    conn.execute('''CREATE TABLE IF NOT EXISTS predictions
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   student_name TEXT,
                   age INTEGER,
@@ -84,37 +64,44 @@ def init_db():
 init_db()
 
 
+def get_features(data):
+    features = {
+        'age': int(data['age']),
+        'study_hours_per_day': float(data['study_hours']),
+        'social_media_hours': float(data['social_hours']),
+        'netflix_hours': float(data['netflix_hours']),
+        'sleep_hours': float(data['sleep_hours']),
+        'exercise_frequency': int(data['exercise_freq']),
+        'mental_health_rating': int(data['mental_health'])
+    }
+    return features
+
+
 def save_prediction(data, score, category):
     try:
-        conn = sqlite3.connect('predictions.db')
-        c = conn.cursor()
-        c.execute('''INSERT INTO predictions 
+        f = get_features(data)
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn = sqlite3.connect(DB)
+        conn.execute('''INSERT INTO predictions
                      (student_name, age, study_hours, social_media_hours, netflix_hours,
-                      sleep_hours, exercise_frequency, mental_health_rating, 
+                      sleep_hours, exercise_frequency, mental_health_rating,
                       predicted_score, performance_category, timestamp)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                  (data['student_name'], int(data['age']), float(data['study_hours']),
-                   float(data['social_hours']), float(data['netflix_hours']),
-                   float(data['sleep_hours']), int(data['exercise_freq']),
-                   int(data['mental_health']), score, category,
-                   datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                     (data['student_name'], f['age'], f['study_hours_per_day'],
+                      f['social_media_hours'], f['netflix_hours'], f['sleep_hours'],
+                      f['exercise_frequency'], f['mental_health_rating'],
+                      score, category, now))
         conn.commit()
         conn.close()
-        logger.info(f"Saved prediction for {data['student_name']}")
-    except sqlite3.OperationalError as e:
-        logger.error(f"Database error saving prediction: {e}")
-    except (KeyError, ValueError, TypeError) as e:
-        logger.error(f"Data validation error saving prediction: {e}")
+        log.info("saved prediction for " + data['student_name'])
     except Exception as e:
-        logger.error(f"Unexpected error saving prediction: {type(e).__name__}: {e}")
+        log.error("could not save prediction: " + str(e))
 
 
 def get_all_predictions():
     try:
-        conn = sqlite3.connect('predictions.db')
-        c = conn.cursor()
-        c.execute('SELECT * FROM predictions ORDER BY timestamp DESC')
-        rows = c.fetchall()
+        conn = sqlite3.connect(DB)
+        rows = conn.execute('SELECT * FROM predictions ORDER BY timestamp DESC').fetchall()
         conn.close()
 
         history = []
@@ -134,41 +121,39 @@ def get_all_predictions():
                 'date': row[11]
             })
         return history
-    except sqlite3.OperationalError as e:
-        logger.error(f"Database error fetching predictions: {e}")
-        return []
     except Exception as e:
-        logger.error(f"Unexpected error fetching predictions: {type(e).__name__}: {e}")
+        log.error("could not read predictions: " + str(e))
         return []
 
 
 def delete_prediction(pred_id):
     try:
-        conn = sqlite3.connect('predictions.db')
-        c = conn.cursor()
-        c.execute('DELETE FROM predictions WHERE id = ?', (pred_id,))
+        conn = sqlite3.connect(DB)
+        conn.execute('DELETE FROM predictions WHERE id = ?', (pred_id,))
         conn.commit()
         conn.close()
         return True
-    except sqlite3.OperationalError as e:
-        logger.error(f"Database error deleting prediction: {e}")
-        return False
     except Exception as e:
-        logger.error(f"Unexpected error deleting prediction: {type(e).__name__}: {e}")
+        log.error("could not delete: " + str(e))
         return False
+
+
+def load_data():
+    if not os.path.exists(DATA_CSV):
+        return None
+    return pd.read_csv(DATA_CSV)
 
 
 def get_dataset_stats():
-    """Calculate real statistics from the dataset"""
     try:
-        csv_path = os.path.join(os.path.dirname(__file__), "data", "student_data_cleaned.csv")
-        if not os.path.exists(csv_path):
-            raise FileNotFoundError(f"Dataset not found at {csv_path}")
+        df = load_data()
+        if df is None:
+            log.error("dataset not found")
+            return None
 
-        df = pd.read_csv(csv_path)
-
+        total = len(df)
         stats = {
-            'total_students': len(df),
+            'total_students': total,
             'avg_score': round(df['exam_score'].mean(), 1),
             'highest_score': df['exam_score'].max(),
             'lowest_score': df['exam_score'].min(),
@@ -178,47 +163,31 @@ def get_dataset_stats():
             'avg_netflix': round(df['netflix_hours'].mean(), 1),
             'avg_exercise': round(df['exercise_frequency'].mean(), 1),
             'avg_mental': round(df['mental_health_rating'].mean(), 1),
-            'pass_rate': round((df['exam_score'] >= 50).sum() / len(df) * 100, 1),
-            'excellent_rate': round((df['exam_score'] >= 85).sum() / len(df) * 100, 1),
+            'pass_rate': round((df['exam_score'] >= 50).sum() / total * 100, 1),
+            'excellent_rate': round((df['exam_score'] >= 85).sum() / total * 100, 1),
         }
         return stats
-    except FileNotFoundError as e:
-        logger.error(f"Dataset file error: {e}")
-        return None
-    except (pd.errors.ParserError, KeyError) as e:
-        logger.error(f"Data parsing error calculating stats: {e}")
-        return None
     except Exception as e:
-        logger.error(f"Unexpected error calculating stats: {type(e).__name__}: {e}")
+        log.error("stats error: " + str(e))
         return None
 
 
 def get_average_stats():
-    """Calculate average values from the dataset for comparison"""
-    try:
-        csv_path = os.path.join(os.path.dirname(__file__), "data", "student_data_cleaned.csv")
-        if not os.path.exists(csv_path):
-            raise FileNotFoundError(f"Dataset not found at {csv_path}")
+    stats = get_dataset_stats()
+    if stats is None:
+        # values from the real dataset in case the csv is missing
+        return {'avg_score': 69.6, 'avg_study': 3.6, 'avg_sleep': 6.5, 'avg_social': 2.5,
+                'avg_exercise': 3.0, 'avg_mental': 5.4, 'avg_netflix': 1.8}
 
-        df = pd.read_csv(csv_path)
-
-        stats = {
-            'avg_score': round(df['exam_score'].mean(), 1),
-            'avg_study': round(df['study_hours_per_day'].mean(), 1),
-            'avg_sleep': round(df['sleep_hours'].mean(), 1),
-            'avg_social': round(df['social_media_hours'].mean(), 1),
-            'avg_exercise': round(df['exercise_frequency'].mean(), 1),
-            'avg_mental': round(df['mental_health_rating'].mean(), 1),
-            'avg_netflix': round(df['netflix_hours'].mean(), 1),
-        }
-        return stats
-    except Exception as e:
-        logger.error(f"Error calculating average stats: {e}")
-        # Return fallback values based on real dataset
-        return {
-            'avg_score': 69.6, 'avg_study': 3.6, 'avg_sleep': 6.5,
-            'avg_social': 2.5, 'avg_exercise': 3.0, 'avg_mental': 5.4, 'avg_netflix': 1.8
-        }
+    return {
+        'avg_score': stats['avg_score'],
+        'avg_study': stats['avg_study'],
+        'avg_sleep': stats['avg_sleep'],
+        'avg_social': stats['avg_social'],
+        'avg_exercise': stats['avg_exercise'],
+        'avg_mental': stats['avg_mental'],
+        'avg_netflix': stats['avg_netflix'],
+    }
 
 
 def get_letter_grade(score):
@@ -231,65 +200,37 @@ def get_letter_grade(score):
     elif score >= 60:
         return 'D', 'Need Improvement'
     else:
-        return 'F', 'Needs Significant Improvement'
+        return 'F', 'Needs a lot of improvement'
+
+
+def check_number(errors, value, label, low, high, is_int=False):
+    try:
+        if is_int:
+            num = int(value)
+        else:
+            num = float(value)
+        if num < low or num > high:
+            errors.append(label + " must be between " + str(low) + " and " + str(high))
+    except (ValueError, TypeError):
+        errors.append("Enter a valid value for " + label.lower())
 
 
 def validate_input(data):
     errors = []
 
-    if not data.get('student_name', '').strip():
-        errors.append("Student name is required")
-    elif len(data.get('student_name', '').strip()) < 2:
-        errors.append("Please enter a valid name (at least 2 characters)")
+    name = data.get('student_name', '').strip()
+    if name == '':
+        errors.append("Name is required")
+    elif len(name) < 2:
+        errors.append("Name must be at least 2 characters")
 
-    try:
-        age = int(data['age'])
-        if age < 15 or age > 100:
-            errors.append("Age must be between 15 and 100")
-    except (ValueError, TypeError):
-        errors.append("Please enter a valid age")
-
-    try:
-        study = float(data['study_hours'])
-        if study < 0 or study > 24:
-            errors.append("Study hours must be between 0 and 24")
-    except (ValueError, TypeError):
-        errors.append("Please enter valid study hours")
-
-    try:
-        social = float(data['social_hours'])
-        if social < 0 or social > 24:
-            errors.append("Social media hours must be between 0 and 24")
-    except (ValueError, TypeError):
-        errors.append("Please enter valid social media hours")
-
-    try:
-        netflix = float(data['netflix_hours'])
-        if netflix < 0 or netflix > 24:
-            errors.append("Entertainment hours must be between 0 and 24")
-    except (ValueError, TypeError):
-        errors.append("Please enter valid entertainment hours")
-
-    try:
-        sleep = float(data['sleep_hours'])
-        if sleep < 3 or sleep > 14:
-            errors.append("Sleep hours should be between 3 and 14")
-    except (ValueError, TypeError):
-        errors.append("Please enter valid sleep hours")
-
-    try:
-        exercise = int(data['exercise_freq'])
-        if exercise < 0 or exercise > 7:
-            errors.append("Exercise frequency must be between 0 and 7 days per week")
-    except (ValueError, TypeError):
-        errors.append("Please enter valid exercise frequency")
-
-    try:
-        mental = int(data['mental_health'])
-        if mental < 1 or mental > 10:
-            errors.append("Mental health rating must be between 1 and 10")
-    except (ValueError, TypeError):
-        errors.append("Please enter valid mental health rating")
+    check_number(errors, data['age'], "Age", 15, 100, is_int=True)
+    check_number(errors, data['study_hours'], "Study hours", 0, 24)
+    check_number(errors, data['social_hours'], "Social media hours", 0, 24)
+    check_number(errors, data['netflix_hours'], "Entertainment hours", 0, 24)
+    check_number(errors, data['sleep_hours'], "Sleep hours", 3, 14)
+    check_number(errors, data['exercise_freq'], "Exercise days", 0, 7, is_int=True)
+    check_number(errors, data['mental_health'], "Mental health rating", 1, 10, is_int=True)
 
     return errors
 
@@ -305,150 +246,109 @@ def get_performance_category(score):
         return "Poor"
 
 
-def generate_strengths_weaknesses(features):
+def generate_strengths_weaknesses(f):
     strengths = []
     weaknesses = []
 
-    # Study hours
-    if features['study_hours_per_day'] >= 5:
-        strengths.append("Strong study habits - you study 5+ hours daily")
-    elif features['study_hours_per_day'] >= 4:
-        strengths.append("Good study routine - consistent daily studying")
-    elif features['study_hours_per_day'] < 3:
-        weaknesses.append("Low study hours - consider increasing to 4-5 hours daily")
+    if f['study_hours_per_day'] >= 5:
+        strengths.append("Good study habits, you study 5+ hours a day")
+    elif f['study_hours_per_day'] >= 4:
+        strengths.append("Decent study routine")
+    elif f['study_hours_per_day'] < 3:
+        weaknesses.append("Low study hours, try 4-5 hours a day")
 
-    # Social media
-    if features['social_media_hours'] <= 2:
-        strengths.append("Excellent digital discipline - low social media usage")
-    elif features['social_media_hours'] <= 3:
-        strengths.append("Moderate social media usage")
-    elif features['social_media_hours'] > 4:
-        weaknesses.append("High social media usage - may affect study focus")
+    if f['social_media_hours'] <= 2:
+        strengths.append("Low social media use")
+    elif f['social_media_hours'] <= 3:
+        strengths.append("Social media use is okay")
+    elif f['social_media_hours'] > 4:
+        weaknesses.append("Too much social media, it can hurt focus")
 
-    # Sleep
-    if 7 <= features['sleep_hours'] <= 9:
-        strengths.append("Optimal sleep schedule - great for memory consolidation")
-    elif features['sleep_hours'] < 6:
-        weaknesses.append("Insufficient sleep - may impact concentration and learning")
-    elif features['sleep_hours'] > 9:
-        weaknesses.append("Excessive sleep - might indicate low energy levels")
+    if 7 <= f['sleep_hours'] <= 9:
+        strengths.append("Good sleep (7-9 hours)")
+    elif f['sleep_hours'] < 6:
+        weaknesses.append("Not enough sleep, can affect concentration")
+    elif f['sleep_hours'] > 9:
+        weaknesses.append("Sleeping more than 9 hours")
 
-    # Exercise
-    if features['exercise_frequency'] >= 3:
-        strengths.append("Regular exercise - boosts brain function and mental health")
-    elif features['exercise_frequency'] >= 1:
-        strengths.append("Some physical activity - consider increasing to 3+ days/week")
+    if f['exercise_frequency'] >= 3:
+        strengths.append("Regular exercise")
+    elif f['exercise_frequency'] >= 1:
+        strengths.append("Some exercise, try to make it 3+ days a week")
     else:
-        weaknesses.append("No regular exercise - physical activity improves cognitive function")
+        weaknesses.append("No exercise")
 
-    # Mental health
-    if features['mental_health_rating'] >= 8:
-        strengths.append("Excellent mental well-being - key for academic success")
-    elif features['mental_health_rating'] >= 6:
-        strengths.append("Good mental health - keep maintaining it")
-    elif features['mental_health_rating'] < 5:
-        weaknesses.append("Mental health concerns - consider speaking with a counselor")
+    if f['mental_health_rating'] >= 8:
+        strengths.append("Very good mental health")
+    elif f['mental_health_rating'] >= 6:
+        strengths.append("Good mental health")
+    elif f['mental_health_rating'] < 5:
+        weaknesses.append("Low mental health rating, maybe talk to a counselor")
 
-    if not strengths:
-        strengths.append("You have potential to improve with better daily habits")
-
-    if not weaknesses:
-        weaknesses.append(
-            "Excellent performance across key lifestyle indicators. Continue maintaining consistency."
-        )
+    if len(strengths) == 0:
+        strengths.append("Better daily habits can improve your score")
+    if len(weaknesses) == 0:
+        weaknesses.append("Nothing major, keep it up")
 
     return strengths, weaknesses
 
 
-def generate_recommendations(features, score):
-    recommendations = []
+def make_rec(area, suggestion, tip):
+    return {'area': area, 'suggestion': suggestion, 'actionable_tip': tip}
 
-    # Study hours recommendations
-    if features['study_hours_per_day'] < 4:
-        recommendations.append({
-            'area': 'Study Habits',
-            'suggestion': f'Increase study time from {features["study_hours_per_day"]} to 4-5 hours daily',
-            'actionable_tip': 'Use Pomodoro technique: 25 min focused study, 5 min break'
-        })
-    elif features['study_hours_per_day'] > 7:
-        recommendations.append({
-            'area': 'Study-Life Balance',
-            'suggestion': f'You study {features["study_hours_per_day"]} hours daily - ensure quality over quantity',
-            'actionable_tip': 'Take regular breaks and ensure you are retaining information effectively'
-        })
 
-    # Social media recommendations
-    if features['social_media_hours'] > 3:
-        recommendations.append({
-            'area': 'Digital Wellness',
-            'suggestion': f'Reduce social media from {features["social_media_hours"]} to under 2 hours daily',
-            'actionable_tip': 'Use app timers and schedule specific times for social media checks'
-        })
+def generate_recommendations(f, score):
+    recs = []
 
-    # Sleep recommendations
-    if features['sleep_hours'] < 7:
-        recommendations.append({
-            'area': 'Sleep Hygiene',
-            'suggestion': 'Aim for 7-8 hours of quality sleep',
-            'actionable_tip': 'Maintain consistent bedtime and avoid screens 30 mins before sleep'
-        })
-    elif features['sleep_hours'] > 9:
-        recommendations.append({
-            'area': 'Sleep Schedule',
-            'suggestion': 'Consider reducing sleep to 7-8 hours for optimal daytime energy',
-            'actionable_tip': 'Try waking up at the same time every day to regulate your circadian rhythm'
-        })
+    if f['study_hours_per_day'] < 4:
+        recs.append(make_rec('Study Habits',
+                             'Increase study time from ' + str(f['study_hours_per_day']) + ' to 4-5 hours a day',
+                             'Try pomodoro: 25 min study, 5 min break'))
+    elif f['study_hours_per_day'] > 7:
+        recs.append(make_rec('Study-Life Balance',
+                             'You study ' + str(f['study_hours_per_day']) + ' hours a day, focus on quality',
+                             'Take breaks and revise what you studied'))
 
-    # Exercise recommendations
-    if features['exercise_frequency'] < 2:
-        recommendations.append({
-            'area': 'Physical Activity',
-            'suggestion': 'Start with 2-3 exercise sessions per week',
-            'actionable_tip': 'Even 15-20 minutes of walking or stretching daily makes a difference'
-        })
+    if f['social_media_hours'] > 3:
+        recs.append(make_rec('Social Media',
+                             'Cut social media from ' + str(f['social_media_hours']) + ' to under 2 hours a day',
+                             'Use app timers on your phone'))
 
-    # Mental health recommendations
-    if features['mental_health_rating'] < 5:
-        recommendations.append({
-            'area': 'Mental Wellness',
-            'suggestion': 'Prioritize mental health support',
-            'actionable_tip': 'Talk to a counselor, practice mindfulness, or join a student support group'
-        })
+    if f['sleep_hours'] < 7:
+        recs.append(make_rec('Sleep', 'Sleep 7-8 hours',
+                             'Sleep at the same time daily and keep the phone away before bed'))
+    elif f['sleep_hours'] > 9:
+        recs.append(make_rec('Sleep', 'Try to bring sleep down to 7-8 hours',
+                             'Wake up at the same time every day'))
 
-    # Academic support for low scores
+    if f['exercise_frequency'] < 2:
+        recs.append(make_rec('Exercise', 'Exercise 2-3 times a week', 'Even a 15-20 min walk helps'))
+
+    if f['mental_health_rating'] < 5:
+        recs.append(make_rec('Mental Health', 'Take care of your mental health',
+                             'Talk to a counselor, friends or family'))
+
     if score < 50:
-        recommendations.append({
-            'area': 'Academic Support',
-            'suggestion': 'Seek additional academic help',
-            'actionable_tip': 'Join study groups, visit office hours, or get a tutor for difficult subjects'
-        })
+        recs.append(make_rec('Academic Help', 'Get some extra help with studies',
+                             'Join a study group or ask teachers for help'))
 
-    if not recommendations:
-        recommendations.append({
-            'area': 'Keep Going',
-            'suggestion': 'You are doing well! Maintain your good habits',
-            'actionable_tip': 'Track your progress weekly to stay motivated and identify areas for improvement'
-        })
+    if len(recs) == 0:
+        recs.append(make_rec('Keep Going', 'You are doing well, keep the same habits',
+                             'Check your progress every week'))
 
-    return recommendations
+    return recs
 
 
 def calculate_percentile(score):
-    """Calculate percentile based on dataset"""
     try:
-        csv_path = os.path.join(os.path.dirname(__file__), "data", "student_data_cleaned.csv")
-        if not os.path.exists(csv_path):
+        df = load_data()
+        if df is None:
             return None
-
-        df = pd.read_csv(csv_path)
-        percentile = round((df['exam_score'] < score).sum() / len(df) * 100, 1)
-        return percentile
+        return round((df['exam_score'] < score).sum() / len(df) * 100, 1)
     except Exception as e:
-        logger.error(f"Error calculating percentile: {e}")
+        log.error("percentile error: " + str(e))
         return None
 
-
-# ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.route('/')
 def index():
@@ -457,80 +357,54 @@ def index():
 
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
-    if request.method == 'POST':
-        student_data = {
-            'student_name': request.form.get('student_name', ''),
-            'age': request.form.get('age', ''),
-            'study_hours': request.form.get('study_hours', ''),
-            'social_hours': request.form.get('social_hours', ''),
-            'netflix_hours': request.form.get('netflix_hours', ''),
-            'sleep_hours': request.form.get('sleep_hours', ''),
-            'exercise_freq': request.form.get('exercise_freq', ''),
-            'mental_health': request.form.get('mental_health', '')
-        }
+    if request.method == 'GET':
+        return render_template('predict.html', errors=[], form_data={})
 
-        errors = validate_input(student_data)
+    student_data = {
+        'student_name': request.form.get('student_name', ''),
+        'age': request.form.get('age', ''),
+        'study_hours': request.form.get('study_hours', ''),
+        'social_hours': request.form.get('social_hours', ''),
+        'netflix_hours': request.form.get('netflix_hours', ''),
+        'sleep_hours': request.form.get('sleep_hours', ''),
+        'exercise_freq': request.form.get('exercise_freq', ''),
+        'mental_health': request.form.get('mental_health', '')
+    }
 
-        if errors:
-            return render_template('predict.html', errors=errors, form_data=student_data)
+    errors = validate_input(student_data)
+    if len(errors) == 0 and pipeline is None:
+        errors = ["Model not loaded, run train_model.py first"]
+    if len(errors) > 0:
+        return render_template('predict.html', errors=errors, form_data=student_data)
 
-        # Check if model is loaded
-        if pipeline is None:
-            errors = ["Model not loaded. Please ensure model is trained and available."]
-            return render_template('predict.html', errors=errors, form_data=student_data)
+    features = get_features(student_data)
+    X = pd.DataFrame([features], columns=FEATURE_NAMES)
 
-        features = {
-            'age': int(student_data['age']),
-            'study_hours_per_day': float(student_data['study_hours']),
-            'social_media_hours': float(student_data['social_hours']),
-            'netflix_hours': float(student_data['netflix_hours']),
-            'sleep_hours': float(student_data['sleep_hours']),
-            'exercise_frequency': int(student_data['exercise_freq']),
-            'mental_health_rating': int(student_data['mental_health'])
-        }
+    try:
+        score = pipeline.predict(X)[0]
+        # linear regression can give less than 0 or more than 100
+        score = round(float(np.clip(score, 0, 100)), 2)
+    except Exception as e:
+        log.error("prediction error: " + str(e))
+        errors = ["Prediction failed, please try again"]
+        return render_template('predict.html', errors=errors, form_data=student_data)
 
-        df_pred = pd.DataFrame([[
-            features['age'], features['study_hours_per_day'],
-            features['social_media_hours'], features['netflix_hours'],
-            features['sleep_hours'], features['exercise_frequency'],
-            features['mental_health_rating']
-        ]], columns=FEATURE_NAMES)
+    category = get_performance_category(score)
+    strengths, weaknesses = generate_strengths_weaknesses(features)
+    recommendations = generate_recommendations(features, score)
 
-        try:
-            predicted_score = pipeline.predict(df_pred)[0]
-            # FIX: Clamp score to valid range 0–100 and cast to plain float
-            predicted_score = round(float(np.clip(predicted_score, 0, 100)), 2)
-        except Exception as e:
-            logger.error(f"Prediction error: {e}")
-            errors = ["Error making prediction. Please try again."]
-            return render_template('predict.html', errors=errors, form_data=student_data)
+    save_prediction(student_data, score, category)
 
-        category = get_performance_category(predicted_score)
-        strengths, weaknesses = generate_strengths_weaknesses(features)
-        recommendations = generate_recommendations(features, predicted_score)
-
-        save_prediction(student_data, predicted_score, category)
-
-        # FIX: Explicitly cast all numeric feature values to plain Python types
-        # to ensure proper JSON serialisation inside Flask's session (cookie).
-        safe_features = {
-            k: (int(v) if isinstance(v, (int, np.integer)) else float(v))
-            for k, v in features.items()
-        }
-
-        session['last_prediction'] = {
-            'student_name': student_data['student_name'],
-            'score': float(predicted_score),
-            'category': category,
-            'features': safe_features,
-            'strengths': strengths,
-            'weaknesses': weaknesses,
-            'recommendations': recommendations
-        }
-
-        return redirect(url_for('report'))
-
-    return render_template('predict.html', errors=[], form_data={})
+    session['last_prediction'] = {
+        'student_name': student_data['student_name'],
+        'score': score,
+        'category': category,
+        'features': features,
+        'strengths': strengths,
+        'weaknesses': weaknesses,
+        'recommendations': recommendations
+    }
+    return redirect(url_for('report'))
 
 
 @app.route('/report')
@@ -539,16 +413,11 @@ def report():
     if not prediction:
         return redirect(url_for('predict'))
 
-    # Get average stats from dataset
-    avg_stats = get_average_stats()
-
-    # Calculate percentile
     percentile = calculate_percentile(prediction['score'])
     if percentile is None:
         percentile = 50
-
-    # Get letter grade
     letter_grade, grade_msg = get_letter_grade(prediction['score'])
+    avg_stats = get_average_stats()
 
     return render_template('report.html', prediction=prediction, avg_stats=avg_stats,
                            percentile=percentile, letter_grade=letter_grade, grade_msg=grade_msg)
@@ -563,25 +432,13 @@ def history():
 @app.route('/dashboard')
 def dashboard():
     stats = get_dataset_stats()
-
-    # If stats couldn't be loaded, show fallback values
     if stats is None:
         stats = {
-            'total_students': 1000,
-            'avg_score': 69.6,
-            'highest_score': 100,
-            'lowest_score': 18.4,
-            'avg_study': 3.6,
-            'avg_sleep': 6.5,
-            'avg_social': 2.5,
-            'avg_netflix': 1.8,
-            'avg_exercise': 3.0,
-            'avg_mental': 5.4,
-            'pass_rate': 75,
-            'excellent_rate': 25,
-            'error': True
+            'total_students': 1000, 'avg_score': 69.6, 'highest_score': 100,
+            'lowest_score': 18.4, 'avg_study': 3.6, 'avg_sleep': 6.5,
+            'avg_social': 2.5, 'avg_netflix': 1.8, 'avg_exercise': 3.0,
+            'avg_mental': 5.4, 'pass_rate': 75, 'excellent_rate': 25, 'error': True
         }
-
     return render_template('dashboard.html', stats=stats, model_info=MODEL_INFO)
 
 
@@ -596,103 +453,80 @@ def api_delete(pred_id):
     return jsonify({'success': success})
 
 
-# API endpoint for score distribution chart
 @app.route('/api/score-distribution')
 def api_score_distribution():
     try:
-        csv_path = os.path.join(os.path.dirname(__file__), "data", "student_data_cleaned.csv")
-        if not os.path.exists(csv_path):
+        df = load_data()
+        if df is None:
             return jsonify({'error': 'Dataset not found'}), 404
 
-        df = pd.read_csv(csv_path)
-
-        # Create bins for scores
         bins = [0, 20, 40, 50, 60, 70, 80, 90, 100]
         labels = ['0-20', '21-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100']
-
         df['score_range'] = pd.cut(df['exam_score'], bins=bins, labels=labels, right=True)
         counts = df['score_range'].value_counts().reindex(labels).fillna(0).astype(int).tolist()
 
         return jsonify({'bins': labels, 'counts': counts})
     except Exception as e:
-        logger.error(f"Error in score distribution: {e}")
+        log.error("score distribution error: " + str(e))
         return jsonify({'error': str(e)}), 500
 
 
-# API endpoint for category distribution
 @app.route('/api/category-distribution')
 def api_category_distribution():
     try:
-        csv_path = os.path.join(os.path.dirname(__file__), "data", "student_data_cleaned.csv")
-        if not os.path.exists(csv_path):
+        df = load_data()
+        if df is None:
             return jsonify({'error': 'Dataset not found'}), 404
 
-        df = pd.read_csv(csv_path)
-
-        def get_cat(score):
-            if score >= 85:
-                return 'Excellent'
-            elif score >= 70:
-                return 'Good'
-            elif score >= 50:
-                return 'Average'
-            else:
-                return 'Poor'
-
-        df['category'] = df['exam_score'].apply(get_cat)
+        df['category'] = df['exam_score'].apply(get_performance_category)
         counts = df['category'].value_counts()
 
-        categories = ['Excellent', 'Good', 'Average', 'Poor']
-        category_counts = [int(counts.get(cat, 0)) for cat in categories]
+        labels = ['Excellent', 'Good', 'Average', 'Poor']
+        values = []
+        for c in labels:
+            values.append(int(counts.get(c, 0)))
 
-        return jsonify({'labels': categories, 'counts': category_counts})
+        return jsonify({'labels': labels, 'counts': values})
     except Exception as e:
-        logger.error(f"Error in category distribution: {e}")
+        log.error("category distribution error: " + str(e))
         return jsonify({'error': str(e)}), 500
 
 
-# API endpoint for habits impact chart
+def avg_score(df, mask):
+    return round(df[mask]['exam_score'].mean(), 1)
+
+
 @app.route('/api/habits-impact')
 def api_habits_impact():
     try:
-        csv_path = os.path.join(os.path.dirname(__file__), "data", "student_data_cleaned.csv")
-        if not os.path.exists(csv_path):
+        df = load_data()
+        if df is None:
             return jsonify({'error': 'Dataset not found'}), 404
 
-        df = pd.read_csv(csv_path)
-
-        # Define groups for comparison
-        groups = ['Study Hours', 'Sleep Hours', 'Social Media', 'Exercise']
-
-        # Study: Low (<3hrs) vs High (>=5hrs)
-        low_study = df[df['study_hours_per_day'] < 3]['exam_score'].mean()
-        high_study = df[df['study_hours_per_day'] >= 5]['exam_score'].mean()
-
-        # Sleep: Poor (<6hrs) vs Good (7-9hrs)
-        low_sleep = df[df['sleep_hours'] < 6]['exam_score'].mean()
-        high_sleep = df[(df['sleep_hours'] >= 7) & (df['sleep_hours'] <= 9)]['exam_score'].mean()
-
-        # Social Media: Low (<2hrs) vs High (>4hrs)
-        low_social = df[df['social_media_hours'] <= 2]['exam_score'].mean()
-        high_social = df[df['social_media_hours'] > 4]['exam_score'].mean()
-
-        # Exercise: Low (<2 days) vs High (>=4 days)
-        low_exercise = df[df['exercise_frequency'] < 2]['exam_score'].mean()
-        high_exercise = df[df['exercise_frequency'] >= 4]['exam_score'].mean()
-
-        low_scores = [round(low_study, 1), round(low_sleep, 1), round(low_social, 1), round(low_exercise, 1)]
-        high_scores = [round(high_study, 1), round(high_sleep, 1), round(high_social, 1), round(high_exercise, 1)]
+        # low group vs high group for each habit
+        # for social media the "low" group is the one using it less
+        low = [
+            avg_score(df, df['study_hours_per_day'] < 3),
+            avg_score(df, df['sleep_hours'] < 6),
+            avg_score(df, df['social_media_hours'] <= 2),
+            avg_score(df, df['exercise_frequency'] < 2),
+        ]
+        high = [
+            avg_score(df, df['study_hours_per_day'] >= 5),
+            avg_score(df, (df['sleep_hours'] >= 7) & (df['sleep_hours'] <= 9)),
+            avg_score(df, df['social_media_hours'] > 4),
+            avg_score(df, df['exercise_frequency'] >= 4),
+        ]
 
         return jsonify({
-            'groups': groups,
-            'low_scores': low_scores,
-            'high_scores': high_scores
+            'groups': ['Study Hours', 'Sleep Hours', 'Social Media', 'Exercise'],
+            'low_scores': low,
+            'high_scores': high
         })
     except Exception as e:
-        logger.error(f"Error in habits impact: {e}")
+        log.error("habits impact error: " + str(e))
         return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
-    debug_mode = os.getenv('FLASK_ENV') != 'production'
-    app.run(debug=debug_mode)
+    app.run(debug=os.getenv('FLASK_ENV') != 'production')

@@ -1,251 +1,108 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center mb-4">
-        <div class="col-12 text-center">
-            <h1 class="display-5 fw-bold mb-3">Academic Performance Predictor</h1>
-            <p class="lead text-secondary">Enter your daily habits to receive a personalized score prediction</p>
+<h2>Predict Your Score</h2>
+<p class="text-muted">Enter your daily habits to get a predicted exam score</p>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                {% if errors %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Please fix these:</strong>
+                    <ul class="mb-0 mt-2">
+                        {% for error in errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endif %}
+
+                <form method="POST" id="predictionForm" novalidate>
+                    <h5 class="mb-3">Personal Info</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="student_name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="student_name" name="student_name"
+                                   value="{{ form_data.get('student_name', '') }}" required placeholder="e.g. Divesh Soni">
+                            <small class="text-muted">Shown in history</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="age" class="form-label">Age</label>
+                            <input type="number" class="form-control" id="age" name="age"
+                                   value="{{ form_data.get('age', '') }}" required min="15" max="100" placeholder="15-100">
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3">Study Habits</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="study_hours" class="form-label">Study Hours (per day)</label>
+                            <input type="number" class="form-control" id="study_hours" name="study_hours"
+                                   value="{{ form_data.get('study_hours', '') }}" required min="0" max="24" step="0.5" placeholder="0-24">
+                            <small class="text-muted">4-5 hours is good</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="social_hours" class="form-label">Social Media (hours per day)</label>
+                            <input type="number" class="form-control" id="social_hours" name="social_hours"
+                                   value="{{ form_data.get('social_hours', '') }}" required min="0" max="24" step="0.5" placeholder="0-24">
+                            <small class="text-muted">Less than 2 hours is good</small>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3">Lifestyle</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="netflix_hours" class="form-label">Netflix / Entertainment (hours per day)</label>
+                            <input type="number" class="form-control" id="netflix_hours" name="netflix_hours"
+                                   value="{{ form_data.get('netflix_hours', '') }}" required min="0" max="24" step="0.5" placeholder="0-24">
+                            <small class="text-muted">Netflix, YouTube, games etc.</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="sleep_hours" class="form-label">Sleep (hours per night)</label>
+                            <input type="number" class="form-control" id="sleep_hours" name="sleep_hours"
+                                   value="{{ form_data.get('sleep_hours', '') }}" required min="3" max="14" step="0.5" placeholder="3-14">
+                            <small class="text-muted">7-9 hours is good</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="exercise_freq" class="form-label">Exercise (days per week)</label>
+                            <input type="number" class="form-control" id="exercise_freq" name="exercise_freq"
+                                   value="{{ form_data.get('exercise_freq', '') }}" required min="0" max="7" placeholder="0-7">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mental_health" class="form-label">Mental Health (1-10)</label>
+                            <input type="number" class="form-control" id="mental_health" name="mental_health"
+                                   value="{{ form_data.get('mental_health', '') }}" required min="1" max="10" placeholder="1-10">
+                            <small class="text-muted">1 = poor, 10 = excellent</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info" id="tipBox" role="alert">
+                        <strong>Tip</strong>
+                        <p class="mb-0">Fill in the form to see a tip.</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Predict</button>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back</a>
+                </form>
+            </div>
         </div>
     </div>
 
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card shadow-lg mb-4">
-                <div class="card-body p-4 p-lg-5">
-                    {% if errors %}
-                    <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-                        <div class="d-flex align-items-start">
-                            <i class="fas fa-circle-exclamation fa-lg me-3 mt-1"></i>
-                            <div>
-                                <strong>Please correct the following:</strong>
-                                <ul class="mb-0 mt-2">
-                                    {% for error in errors %}
-                                    <li>{{ error }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                    {% endif %}
-
-                    <form method="POST" id="predictionForm" novalidate>
-                        <!-- Section 1: Personal Information -->
-                        <div class="form-section mb-4">
-                            <div class="section-header mb-3">
-                                <i class="fas fa-user-circle"></i>
-                                <h5 class="mb-0">Personal Information</h5>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="student_name" class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" id="student_name" 
-                                           name="student_name" value="{{ form_data.get('student_name', '') }}" 
-                                           required placeholder="e.g., Divesh soni">
-                                    <small class="text-muted">Used for tracking your prediction history</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="age" class="form-label">Age</label>
-                                    <input type="number" class="form-control" id="age" 
-                                           name="age" value="{{ form_data.get('age', '') }}" required
-                                           min="15" max="100" placeholder="15-100">
-                                    <small class="text-muted">Age range: 15-100 years</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Section 2: Academic Habits -->
-                        <div class="form-section mb-4">
-                            <div class="section-header mb-3">
-                                <i class="fas fa-book-open"></i>
-                                <h5 class="mb-0">Academic Habits</h5>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="study_hours" class="form-label">Daily Study Hours</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="study_hours" 
-                                               name="study_hours" value="{{ form_data.get('study_hours', '') }}" 
-                                               required min="0" max="24" step="0.5" placeholder="0-24">
-                                        <span class="input-group-text">hours/day</span>
-                                    </div>
-                                    <small class="text-muted">Recommended: 4-5 hours for optimal performance</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="social_hours" class="form-label">Social Media Usage</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="social_hours" 
-                                               name="social_hours" value="{{ form_data.get('social_hours', '') }}" 
-                                               required min="0" max="24" step="0.5" placeholder="0-24">
-                                        <span class="input-group-text">hours/day</span>
-                                    </div>
-                                    <small class="text-muted">Recommended: Less than 2 hours</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Section 3: Lifestyle & Wellness -->
-                        <div class="form-section mb-4">
-                            <div class="section-header mb-3">
-                                <i class="fas fa-heartbeat"></i>
-                                <h5 class="mb-0">Lifestyle & Wellness</h5>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="netflix_hours" class="form-label">Entertainment Hours</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="netflix_hours" 
-                                               name="netflix_hours" value="{{ form_data.get('netflix_hours', '') }}" 
-                                               required min="0" max="24" step="0.5" placeholder="0-24">
-                                        <span class="input-group-text">hours/day</span>
-                                    </div>
-                                    <small class="text-muted">Streaming, gaming, and other entertainment</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="sleep_hours" class="form-label">Sleep Duration</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="sleep_hours" 
-                                               name="sleep_hours" value="{{ form_data.get('sleep_hours', '') }}" 
-                                               required min="3" max="14" step="0.5" placeholder="3-14">
-                                        <span class="input-group-text">hours/night</span>
-                                    </div>
-                                    <small class="text-muted">Recommended: 7-9 hours for adults</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="exercise_freq" class="form-label">Exercise Frequency</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="exercise_freq" 
-                                               name="exercise_freq" value="{{ form_data.get('exercise_freq', '') }}" 
-                                               required min="0" max="7" placeholder="0-7">
-                                        <span class="input-group-text">days/week</span>
-                                    </div>
-                                    <small class="text-muted">Recommended: 3-4 days per week</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="mental_health" class="form-label">Mental Health Rating</label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control" id="mental_health" 
-                                               name="mental_health" value="{{ form_data.get('mental_health', '') }}" 
-                                               required min="1" max="10" placeholder="1-10">
-                                        <span class="input-group-text">/ 10</span>
-                                    </div>
-                                    <small class="text-muted">1 = Poor, 10 = Excellent</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Real-time Feedback Panel -->
-                        <div class="alert alert-info mb-4" id="tipBox" role="alert">
-                            <div class="d-flex align-items-start">
-                                <i class="fas fa-lightbulb fa-lg me-3 mt-1"></i>
-                                <div>
-                                    <strong>Personalized Insight</strong>
-                                    <p class="mb-0">Fill in your information to receive real-time feedback on your habits.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="d-grid gap-3">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-chart-line me-2"></i>Generate Prediction
-                            </button>
-                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Back to Home
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- How It Works Section -->
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="step-number me-3">1</div>
-                                <h5 class="mb-0">Input Your Data</h5>
-                            </div>
-                            <p class="text-secondary mb-0">Enter accurate information about your daily study habits, sleep patterns, and lifestyle choices.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="step-number me-3">2</div>
-                                <h5 class="mb-0">AI Analysis</h5>
-                            </div>
-                            <p class="text-secondary mb-0">Our Linear Regression model processes your data against patterns from 1,000 student records.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="step-number me-3">3</div>
-                                <h5 class="mb-0">Get Prediction</h5>
-                            </div>
-                            <p class="text-secondary mb-0">Receive your predicted exam score and performance category based on your inputs.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="step-number me-3">4</div>
-                                <h5 class="mb-0">Actionable Insights</h5>
-                            </div>
-                            <p class="text-secondary mb-0">Get personalized recommendations to improve your academic performance.</p>
-                        </div>
-                    </div>
-                </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><h5>How it works</h5></div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li>Fill in your study, sleep and screen time.</li>
+                    <li>A Linear Regression model trained on 1000 students predicts your score.</li>
+                    <li>You get a predicted score and a category.</li>
+                    <li>You also get some tips to improve.</li>
+                </ol>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.form-section {
-    background: rgba(30, 41, 59, 0.4);
-    border-radius: 16px;
-    padding: 1.5rem;
-}
-
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding-bottom: 0.75rem;
-    border-bottom: 2px solid var(--dark-border);
-}
-
-.section-header i {
-    font-size: 1.25rem;
-    color: var(--primary);
-}
-
-.step-number {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    color: white;
-}
-
-@media (max-width: 768px) {
-    .form-section {
-        padding: 1rem;
-    }
-}
-</style>
 {% endblock %}

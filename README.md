@@ -1,80 +1,49 @@
 # Student Performance Prediction System
 
-A Flask-based web application that predicts student academic performance using machine learning and provides personalized recommendations based on habits and lifestyle factors.
+Flask web app that predicts a student's exam score (0-100) from daily habits like study hours, sleep, social media and exercise. It also shows a report with grade, percentile, strengths/weaknesses and some tips.
 
-## Features
+Dataset: student habits and performance dataset from Kaggle (1000 students).
 
-- **Performance Prediction**: ML-powered predictions based on study habits, sleep, exercise, and mental health
-- **Interactive Dashboard**: Visualize score distributions and habit impact analysis
-- **Detailed Reports**: Get personalized recommendations and performance insights
-- **Prediction History**: Track previous predictions with database storage
-- **Comparative Analysis**: See how your performance compares to average statistics
+## Pages
 
-## Prerequisites
+- **Predict** - fill the form and get your predicted score
+- **Report** - score, grade, comparison with the average student, tips
+- **Analytics** - charts from the dataset (Chart.js)
+- **History** - all past predictions (saved in SQLite), can delete them
+- **About** - model details and coefficients
 
-- Python 3.8+
-- pip (Python package manager)
+## How to run
 
-## Installation
-
-1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd "Student Performance Prediction System"
-```
-
-2. **Create a virtual environment** (optional but recommended)
 ```bash
 python -m venv venv
-# On Windows
-venv\Scripts\activate
-# On macOS/Linux
-source venv/bin/activate
-```
+venv\Scripts\activate          # windows
+source venv/bin/activate       # mac/linux
 
-3. **Install dependencies**
-```bash
 pip install -r requirements.txt
-```
-
-4. **Prepare the model**
-   - Run `preprocessing_02.ipynb` to train and save the model to `models/student_model.pkl`
-   - Ensure `data/student_data_cleaned.csv` exists in the data folder
-
-## Usage
-
-1. **Start the application**
-```bash
+python train_model.py
 python app.py
 ```
 
-2. **Open in browser**
-```
-http://localhost:5000
-```
+Then open http://localhost:5000
 
-3. **Navigate the app**
-   - **Home**: Overview and introduction
-   - **Predict**: Input student data to get performance predictions
-   - **Dashboard**: View statistical insights and trends
-   - **History**: Browse all previous predictions
-   - **About**: Learn more about the system
+`train_model.py` creates `models/student_model.pkl`, `models/model_info.json` and `data/student_data_cleaned.csv`.
 
-## Project Structure
+## Folder structure
 
 ```
-├── app.py                      # Main Flask application
-├── requirements.txt            # Python dependencies
-├── .gitignore                  # Git ignore rules
-├── data/                       # Data files
-│   ├── student_data_cleaned.csv
-│   └── student_habits_performance.csv
-├── models/                     # Machine learning model
-│   └── student_model.pkl       # Trained model (generated)
-├── static/                     # Frontend assets
+├── app.py
+├── train_model.py
+├── requirements.txt
+├── data/
+│   ├── student_habits_performance.csv
+│   └── student_data_cleaned.csv
+├── models/
+│   ├── student_model.pkl
+│   └── model_info.json
+├── static/
 │   ├── style.css
 │   └── script.js
-├── templates/                  # HTML templates
+├── templates/
 │   ├── base.html
 │   ├── index.html
 │   ├── predict.html
@@ -82,92 +51,35 @@ http://localhost:5000
 │   ├── dashboard.html
 │   ├── history.html
 │   └── about.html
-├── EDA 01.ipynb               # Exploratory Data Analysis
-└── preprocessing_02.ipynb     # Data preprocessing & model training
+├── EDA 01.ipynb
+└── preprocessing_02.ipynb
 ```
 
-## Environment Variables
+## Model
 
-For production deployment, set the following environment variables:
+Features used: age, study hours, social media hours, Netflix hours, sleep hours, exercise days per week, mental health rating (1-10). Other columns like gender, diet and internet quality were dropped because the form doesn't ask for them.
 
-```bash
-# Secret key for Flask sessions (generate a secure key)
-export FLASK_SECRET_KEY="your-secret-key-here"
+- 80/20 train test split (`random_state=123`)
+- `StandardScaler` + model in a sklearn `Pipeline`
+- tried 3 models and picked the best 5-fold CV R²
 
-# Flask environment
-export FLASK_ENV=production
-```
+| Model | R² (test) | MAE | RMSE | CV R² |
+|---|---|---|---|---|
+| Linear Regression | 0.901 | 4.41 | 5.46 | 0.888 |
+| Random Forest | 0.858 | 5.33 | 6.55 | 0.852 |
+| Decision Tree | 0.770 | 6.46 | 8.33 | 0.730 |
 
-Update `app.py` to use environment variables:
-```python
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-key')
-debug = os.getenv('FLASK_ENV') != 'production'
-```
+Linear Regression did best. Coefficients (scaled data): study hours +13.8, mental health +5.5, social media -3.0, exercise +2.9, Netflix -2.5, sleep +2.4, age about 0.
 
-## Model Training
+## Categories
 
-To retrain the model:
+- Excellent: 85 and above
+- Good: 70 - 84
+- Average: 50 - 69
+- Poor: below 50
 
-1. Update data files in the `data/` folder
-2. Run `preprocessing_02.ipynb` to preprocess data and train the model
-3. The model will be saved as `models/student_model.pkl`
+## Notes
 
-## Features Explained
-
-The prediction model uses these features:
-- **Age**: Student's age (15-100 years)
-- **Study Hours**: Daily study hours (0-24)
-- **Social Media Hours**: Daily social media usage (0-24)
-- **Netflix Hours**: Daily streaming hours (0-24)
-- **Sleep Hours**: Daily sleep duration (3-14 hours)
-- **Exercise Frequency**: Weekly exercise days (0-7)
-- **Mental Health Rating**: Self-rated mental health (1-10)
-
-## Performance Categories
-
-- **Excellent**: Score ≥ 85
-- **Good**: Score 70-84
-- **Average**: Score 50-69
-- **Poor**: Score < 50
-
-## Database
-
-The application uses SQLite to store prediction history:
-- **File**: `predictions.db` (auto-generated)
-- **Table**: `predictions` - Stores student prediction records
-
-## Troubleshooting
-
-### Model not loading
-- Ensure `models/student_model.pkl` exists
-- Run `preprocessing_02.ipynb` to generate the model
-
-### Data files not found
-- Verify `data/student_data_cleaned.csv` exists
-- Check file paths in `app.py`
-
-### Port already in use
-```bash
-# Change port in app.py or use:
-python app.py --port 5001
-```
-
-## Future Enhancements
-
-- [ ] User authentication system
-- [ ] More detailed analytics
-- [ ] Export reports as PDF
-- [ ] Multi-language support
-- [ ] Mobile app version
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Contributors
-
-- Created as an educational project for student performance prediction
-
-## Support
-
-For issues or questions, please open an issue in the repository.
+- Predictions are stored in `predictions.db` (created automatically).
+- If the model is missing, run `python train_model.py` again.
+- To use another port: `app.run(port=5001)` at the end of `app.py`.

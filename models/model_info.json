@@ -1,0 +1,48 @@
+{
+  "type": "Linear Regression",
+  "r2_score": 0.9012,
+  "mae": 4.41,
+  "rmse": 5.46,
+  "cv_r2": 0.8883,
+  "features": [
+    "Age",
+    "Study Hours/Day",
+    "Social Media Hours",
+    "Netflix Hours",
+    "Sleep Hours",
+    "Exercise Frequency",
+    "Mental Health Rating"
+  ],
+  "feature_importance": {
+    "Study Hours/Day": 13.84,
+    "Mental Health Rating": 5.55,
+    "Social Media Hours": -3.04,
+    "Exercise Frequency": 2.9,
+    "Netflix Hours": -2.5,
+    "Sleep Hours": 2.44,
+    "Age": -0.05
+  },
+  "comparison": [
+    {
+      "model": "Linear Regression",
+      "r2": 0.9012,
+      "mae": 4.4113,
+      "rmse": 5.4566,
+      "cv_r2": 0.8883
+    },
+    {
+      "model": "Random Forest",
+      "r2": 0.8575,
+      "mae": 5.3288,
+      "rmse": 6.5533,
+      "cv_r2": 0.8517
+    },
+    {
+      "model": "Decision Tree",
+      "r2": 0.7699,
+      "mae": 6.4574,
+      "rmse": 8.3272,
+      "cv_r2": 0.7298
+    }
+  ]
+}

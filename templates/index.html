@@ -1,58 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="hero-section">
-    <div class="container">
-        <div class="row align-items-center min-vh-75">
-            <div class="col-lg-6 mb-5 mb-lg-0">
-                <div class="hero-badge mb-4">
-                    <span class="badge bg-primary-soft">
-                        <i class="fas fa-brain me-2"></i>AI-Powered Prediction Engine
-                    </span>
-                </div>
-                <h1 class="display-3 fw-bold mb-4">
-                    Predict Student<br>
-                    <span class="gradient-text">Exam Performance</span>
-                </h1>
-                <p class="lead text-secondary mb-4">
-                    Machine learning model trained on real student data analyzes study habits, 
-                    lifestyle patterns, and wellness metrics to predict academic outcomes.
-                </p>
-                <div class="d-flex gap-3 flex-wrap">
-                    <a href="{{ url_for('predict') }}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-arrow-right me-2"></i>Start Prediction
-                    </a>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-lg">
-                        <i class="fas fa-chart-pie me-2"></i>View Analytics
-                    </a>
-                </div>
+<div class="row align-items-center my-4">
+    <div class="col-lg-6">
+        <h1 class="fw-bold">Predict Student Exam Performance</h1>
+        <p class="lead text-muted">
+            Enter your daily habits like study hours, sleep and screen time,
+            and the model predicts your exam score.
+        </p>
+        <a href="{{ url_for('predict') }}" class="btn btn-primary btn-lg me-2">Start Prediction</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-lg">View Analytics</a>
+    </div>
+    <div class="col-lg-6 d-none d-lg-block">
+        <div class="card">
+            <div class="card-header">
+                <h5>Model Results</h5>
+                <span class="badge bg-success float-end">R² = 0.90</span>
             </div>
-            <div class="col-lg-6 d-none d-lg-block">
-                <div class="hero-card">
-                    <div class="card bg-dark-surface border-dark-border">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h6 class="mb-0">Model Performance Metrics</h6>
-                                <span class="badge bg-success">R² = 0.90</span>
-                            </div>
-                            <div class="mb-4">
-                                <canvas id="previewChart" height="120"></canvas>
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-6">
-                                    <div class="metric-card">
-                                        <div class="metric-value">13.84</div>
-                                        <div class="metric-label">Study Hours Coefficient</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="metric-card">
-                                        <div class="metric-value">5.55</div>
-                                        <div class="metric-label">Mental Health Coefficient</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <div class="card-body">
+                <canvas id="previewChart" height="120"></canvas>
+                <div class="row text-center mt-3">
+                    <div class="col-6">
+                        <div class="stat-value">13.84</div>
+                        <div class="stat-label">Study Hours Coefficient</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-value">5.55</div>
+                        <div class="stat-label">Mental Health Coefficient</div>
                     </div>
                 </div>
             </div>
@@ -60,171 +34,58 @@
     </div>
 </div>
 
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h2 class="display-5 fw-bold mb-3">Key Features</h2>
-        <p class="lead text-secondary">Powered by Linear Regression trained on 1,000 student records</p>
+<h3 class="mt-5 mb-3">What it does</h3>
+<div class="row">
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5><i class="fas fa-chart-line text-primary"></i> Linear Regression</h5>
+                <p class="text-muted">R² score of 0.90 and MAE of 4.41 marks</p>
+            </div>
+        </div>
     </div>
-
-    <div class="row g-4">
-        <div class="col-md-6 col-lg-3">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-                <h5>Linear Regression Model</h5>
-                <p class="text-secondary">Trained with R² score of 0.90, Mean Absolute Error of 4.41 points</p>
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5><i class="fas fa-chart-bar text-primary"></i> Important Habits</h5>
+                <p class="text-muted">Study hours and mental health affect the score the most</p>
             </div>
         </div>
-        <div class="col-md-6 col-lg-3">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-chart-bar"></i>
-                </div>
-                <h5>Feature Analysis</h5>
-                <p class="text-secondary">Study hours and mental health have highest impact on scores</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5><i class="fas fa-list-check text-primary"></i> Tips</h5>
+                <p class="text-muted">Simple tips based on your habits</p>
             </div>
         </div>
-        <div class="col-md-6 col-lg-3">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-list-check"></i>
-                </div>
-                <h5>Personalized Recommendations</h5>
-                <p class="text-secondary">Actionable insights based on individual habit patterns</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-3">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-chart-simple"></i>
-                </div>
-                <h5>Performance Tracking</h5>
-                <p class="text-secondary">Save and compare predictions over time</p>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5><i class="fas fa-clock-rotate-left text-primary"></i> History</h5>
+                <p class="text-muted">Every prediction is saved so you can see it later</p>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+{% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('previewChart');
-    if (ctx) {
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Study Hours', 'Mental Health', 'Exercise', 'Sleep', 'Social Media'],
-                datasets: [{
-                    label: 'Feature Coefficient Impact',
-                    data: [13.84, 5.55, 2.90, 2.44, -3.04],
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: { 
-                        ticks: { color: '#94a3b8' },
-                        grid: { color: 'rgba(71, 85, 105, 0.2)' }
-                    },
-                    x: { 
-                        ticks: { color: '#94a3b8' },
-                        grid: { display: false }
-                    }
-                }
-            }
-        });
+new Chart(document.getElementById('previewChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Study Hours', 'Mental Health', 'Exercise', 'Sleep', 'Social Media'],
+        datasets: [{
+            label: 'Coefficient',
+            data: [13.84, 5.55, 2.90, 2.44, -3.04],
+            backgroundColor: '#0d6efd'
+        }]
+    },
+    options: {
+        plugins: { legend: { display: false } }
     }
 });
 </script>
-
-<style>
-.hero-section {
-    padding: 4rem 0 2rem 0;
-}
-
-.hero-badge .badge {
-    background: rgba(99, 102, 241, 0.15);
-    color: var(--primary-light);
-    padding: 0.5rem 1rem;
-    border-radius: 30px;
-}
-
-.gradient-text {
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.hero-card {
-    position: relative;
-}
-
-.metric-card {
-    background: rgba(51, 65, 85, 0.3);
-    border-radius: 16px;
-    padding: 1rem;
-    text-align: center;
-}
-
-.metric-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--primary-light);
-}
-
-.metric-label {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-}
-
-.feature-card {
-    background: rgba(30, 41, 59, 0.5);
-    border: 1px solid var(--dark-border);
-    border-radius: 20px;
-    padding: 1.5rem;
-    transition: var(--transition);
-}
-
-.feature-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(99, 102, 241, 0.3);
-}
-
-.feature-icon {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.2));
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1rem;
-}
-
-.feature-icon i {
-    font-size: 1.5rem;
-    color: var(--primary);
-}
-
-@media (max-width: 768px) {
-    .hero-section {
-        padding: 2rem 0;
-    }
-    
-    .display-3 {
-        font-size: 2rem;
-    }
-}
-</style>
 {% endblock %}

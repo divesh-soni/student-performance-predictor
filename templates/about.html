@@ -1,249 +1,68 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg">
-                <div class="card-header text-center py-4">
-                    <i class="fas fa-circle-info fa-2x mb-2" style="color: var(--primary);"></i>
-                    <h4 class="mb-1">About This Project</h4>
-                    <p class="text-muted mb-0">Student Performance Prediction System</p>
-                </div>
-                <div class="card-body p-4">
-                    
-                    <h5><i class="fas fa-bullseye me-2" style="color: var(--primary);"></i>Project Overview</h5>
-                    <p>This system uses a Linear Regression machine learning model to predict student exam scores based on daily habits and lifestyle factors. The model was trained on a dataset of 1,000 students with 7 key features.</p>
-                    
-                    <hr class="my-4">
-                    
-                    <h5><i class="fas fa-gear me-2" style="color: var(--primary);"></i>How It Works</h5>
-                    <ol class="mb-4">
-                        <li class="mb-2">Enter your daily habits (study hours, sleep, exercise, etc.)</li>
-                        <li class="mb-2">The Linear Regression model processes your input against trained patterns</li>
-                        <li class="mb-2">Receive your predicted exam score (0-100 scale)</li>
-                        <li>Get personalized recommendations based on your habit patterns</li>
-                    </ol>
-                    
-                    <hr class="my-4">
-                    
-                    <h5><i class="fas fa-microchip me-2" style="color: var(--primary);"></i>Technology Stack</h5>
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <div class="tech-card">
-                                <i class="fab fa-python"></i>
-                                <div>
-                                    <strong>Backend</strong>
-                                    <small>Python, Flask</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="tech-card">
-                                <i class="fas fa-brain"></i>
-                                <div>
-                                    <strong>ML Model</strong>
-                                    <small>Linear Regression</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="tech-card">
-                                <i class="fas fa-database"></i>
-                                <div>
-                                    <strong>Database</strong>
-                                    <small>SQLite3</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="tech-card">
-                                <i class="fab fa-bootstrap"></i>
-                                <div>
-                                    <strong>Frontend</strong>
-                                    <small>Bootstrap 5, Chart.js</small>
-                                </div>
-                            </div>
-                        </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><h4 class="mb-0">About</h4></div>
+            <div class="card-body">
+
+                <h5>Overview</h5>
+                <p>This project predicts a student's exam score from 7 daily habits using Linear Regression. The model is trained on a dataset of 1000 students.</p>
+
+                <h5 class="mt-4">How it works</h5>
+                <ol>
+                    <li>Enter your daily habits (study hours, sleep, exercise etc.)</li>
+                    <li>The model predicts your score</li>
+                    <li>You get a score out of 100</li>
+                    <li>You also get some tips based on your habits</li>
+                </ol>
+
+                <h5 class="mt-4">Tech Used</h5>
+                <ul>
+                    <li><b>Backend:</b> Python, Flask</li>
+                    <li><b>ML Model:</b> Linear Regression (scikit-learn)</li>
+                    <li><b>Database:</b> SQLite</li>
+                    <li><b>Frontend:</b> Bootstrap 5, Chart.js</li>
+                </ul>
+
+                <h5 class="mt-4">Model Performance</h5>
+                <table class="table table-bordered text-center">
+                    <tr>
+                        <th>R² Score</th>
+                        <th>Mean Absolute Error</th>
+                        <th>Root Mean Squared Error</th>
+                    </tr>
+                    <tr>
+                        <td class="metric-value">{{ "%.4f"|format(model_info.r2_score) }}</td>
+                        <td class="metric-value">{{ "%.2f"|format(model_info.mae) }}</td>
+                        <td class="metric-value">{{ "%.2f"|format(model_info.rmse) }}</td>
+                    </tr>
+                </table>
+
+                <h5 class="mt-4">Input Features</h5>
+                <p>
+                    {% for feature in model_info.features %}
+                        <span class="badge bg-secondary">{{ feature }}</span>
+                    {% endfor %}
+                </p>
+
+                <h5 class="mt-4">Coefficients</h5>
+                {% for feature, coef in model_info.feature_importance.items() %}
+                    <div class="mb-2">
+                        <span class="importance-name">{{ feature }}</span>
+                        <span class="importance-bar {% if coef > 0 %}bg-success{% else %}bg-danger{% endif %}"
+                              style="width: {{ (coef|abs / 14) * 200 }}px"></span>
+                        <span class="importance-value {% if coef > 0 %}text-success{% else %}text-danger{% endif %}">{{ "%.2f"|format(coef) }}</span>
                     </div>
-                    
-                    <hr class="my-4">
-                    
-                    <h5><i class="fas fa-chart-line me-2" style="color: var(--primary);"></i>Model Performance</h5>
-                    <div class="metrics-grid mb-4">
-                        <div class="metric-box">
-                            <div class="metric-value">{{ "%.4f"|format(model_info.r2_score) }}</div>
-                            <div class="metric-label">R² Score</div>
-                        </div>
-                        <div class="metric-box">
-                            <div class="metric-value">{{ "%.2f"|format(model_info.mae) }}</div>
-                            <div class="metric-label">Mean Absolute Error</div>
-                        </div>
-                        <div class="metric-box">
-                            <div class="metric-value">{{ "%.2f"|format(model_info.rmse) }}</div>
-                            <div class="metric-label">Root Mean Squared Error</div>
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <h5><i class="fas fa-chart-simple me-2" style="color: var(--primary);"></i>Features Used in Prediction</h5>
-                    <div class="features-list mb-4">
-                        {% for feature in model_info.features %}
-                            <span class="feature-tag">{{ feature }}</span>
-                        {% endfor %}
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <h5><i class="fas fa-chart-bar me-2" style="color: var(--primary);"></i>Feature Importance (Coefficients)</h5>
-                    <div class="importance-list mb-4">
-                        {% for feature, coef in model_info.feature_importance.items() %}
-                            <div class="importance-item">
-                                <span class="importance-name">{{ feature }}</span>
-                                <div class="importance-bar-container">
-                                    <div class="importance-bar {% if coef > 0 %}positive{% else %}negative{% endif %}" 
-                                         style="width: {{ (coef|abs / 14) * 100 }}%"></div>
-                                </div>
-                                <span class="importance-value {% if coef > 0 %}text-success{% else %}text-danger{% endif %}">
-                                    {{ "%.2f"|format(coef) }}
-                                </span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="alert alert-info mt-4">
-                        <div class="d-flex align-items-start">
-                            <i class="fas fa-flask fa-lg me-3 mt-1"></i>
-                            <div>
-                                <strong>Model Interpretation</strong>
-                                <p class="mb-0 small">Positive coefficients indicate factors that increase predicted scores. Study hours and mental health have the strongest positive impact, while high social media and entertainment hours show negative correlation with exam performance.</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div class="text-center">
-                        <p class="text-muted small mb-0">
-                            <i class="fas fa-code-branch me-1"></i> Built with Python, Flask, Scikit-learn
-                        </p>
-                        <p class="text-muted small">Dataset: 1,000 student records | Model: Linear Regression | Features: 7 variables</p>
-                    </div>
+                {% endfor %}
+
+                <div class="alert alert-info mt-4 mb-0">
+                    <b>What this means:</b> positive means the habit increases the score, negative means it lowers it.
+                    Study hours and mental health help the most, social media and Netflix bring the score down.
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.tech-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0.75rem;
-    background: rgba(51, 65, 85, 0.3);
-    border-radius: 12px;
-}
-
-.tech-card i {
-    font-size: 1.5rem;
-    color: var(--primary);
-}
-
-.tech-card strong {
-    display: block;
-    font-size: 0.85rem;
-}
-
-.tech-card small {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-}
-
-.metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
-}
-
-.metric-box {
-    text-align: center;
-    padding: 1rem;
-    background: rgba(51, 65, 85, 0.3);
-    border-radius: 16px;
-}
-
-.metric-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--primary-light);
-}
-
-.metric-label {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-}
-
-.features-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.feature-tag {
-    padding: 4px 12px;
-    background: rgba(99, 102, 241, 0.15);
-    border-radius: 20px;
-    font-size: 0.8rem;
-    color: var(--primary-light);
-}
-
-.importance-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.importance-name {
-    width: 120px;
-    font-size: 0.85rem;
-}
-
-.importance-bar-container {
-    flex: 1;
-    height: 8px;
-    background: rgba(51, 65, 85, 0.5);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.importance-bar {
-    height: 100%;
-    border-radius: 4px;
-}
-
-.importance-bar.positive {
-    background: linear-gradient(90deg, var(--success), #34d399);
-}
-
-.importance-bar.negative {
-    background: linear-gradient(90deg, var(--danger), #f87171);
-}
-
-.importance-value {
-    width: 45px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    text-align: right;
-}
-
-@media (max-width: 768px) {
-    .importance-name {
-        width: 100px;
-        font-size: 0.75rem;
-    }
-}
-</style>
 {% endblock %}

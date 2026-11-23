@@ -1,180 +1,90 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <h1 class="display-5 fw-bold mb-3">Prediction History</h1>
-            <p class="lead text-secondary">Track and review all your previous performance predictions</p>
-        </div>
-    </div>
+<h2>Prediction History</h2>
+<p class="text-muted">All your past predictions</p>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-list me-2"></i>
-                    <h5 class="mb-0">All Predictions</h5>
-                </div>
-                <div class="card-body p-0">
-                    {% if predictions %}
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead>
-                                    <tr>
-                                        <th><i class="fas fa-calendar me-2"></i>Date</th>
-                                        <th><i class="fas fa-user me-2"></i>Name</th>
-                                        <th><i class="fas fa-cake-candles me-2"></i>Age</th>
-                                        <th><i class="fas fa-book me-2"></i>Study Hrs</th>
-                                        <th><i class="fas fa-chart-line me-2"></i>Score</th>
-                                        <th><i class="fas fa-tag me-2"></i>Category</th>
-                                        <th><i class="fas fa-trash-can me-2"></i>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for pred in predictions %}
-                                    <tr>
-                                        <td><span class="date-badge">{{ pred.date }}</span></td>
-                                        <td><strong>{{ pred.name }}</strong></td>
-                                        <td>{{ pred.age }}</td>
-                                        <td>{{ "%.1f"|format(pred.study_hours) }}h</td>
-                                        <td><span class="score-value">{{ "%.1f"|format(pred.score) }}</span></td>
-                                        <td>
-                                            <span class="category-badge 
-                                                {%- if pred.category == 'Excellent' %}category-excellent
-                                                {%- elif pred.category == 'Good' %}category-good
-                                                {%- elif pred.category == 'Average' %}category-average
-                                                {%- else %}category-poor{% endif %}">
-                                                {{ pred.category }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button class="btn-delete" data-id="{{ pred.id }}" title="Delete prediction">
-                                                <i class="fas fa-trash-can"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="empty-state text-center py-5">
-                            <div class="empty-icon">
-                                <i class="fas fa-inbox"></i>
-                            </div>
-                            <h5 class="mt-3">No predictions yet</h5>
-                            <p class="text-secondary mb-4">Start making predictions to see them here</p>
-                            <a href="{{ url_for('predict') }}" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i>Make Your First Prediction
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
+<div class="card">
+    <div class="card-body">
+        {% if predictions %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Name</th>
+                        <th>Age</th>
+                        <th>Study Hrs</th>
+                        <th>Score</th>
+                        <th>Category</th>
+                        <th>Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pred in predictions %}
+                    <tr>
+                        <td>{{ pred.date }}</td>
+                        <td>{{ pred.name }}</td>
+                        <td>{{ pred.age }}</td>
+                        <td>{{ "%.1f"|format(pred.study_hours) }}h</td>
+                        <td><b>{{ "%.1f"|format(pred.score) }}</b></td>
+                        <td>
+                            {% if pred.category == 'Excellent' %}
+                                <span class="badge bg-success">{{ pred.category }}</span>
+                            {% elif pred.category == 'Good' %}
+                                <span class="badge bg-info">{{ pred.category }}</span>
+                            {% elif pred.category == 'Average' %}
+                                <span class="badge bg-warning text-dark">{{ pred.category }}</span>
+                            {% else %}
+                                <span class="badge bg-danger">{{ pred.category }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger btn-delete" data-id="{{ pred.id }}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% else %}
+        <div class="text-center py-4">
+            <h5>No predictions yet</h5>
+            <p class="text-muted">Make a prediction and it will show up here</p>
+            <a href="{{ url_for('predict') }}" class="btn btn-primary">Make a Prediction</a>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const deleteButtons = document.querySelectorAll('.btn-delete');
-    
-    deleteButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const predId = this.getAttribute('data-id');
-            const row = this.closest('tr');
-            
-            if (confirm('Delete this prediction? This action cannot be undone.')) {
-                fetch(`/api/delete/${predId}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        row.style.opacity = '0';
-                        setTimeout(() => {
-                            row.remove();
-                            const tbody = document.querySelector('tbody');
-                            if (tbody && tbody.children.length === 0) {
-                                location.reload();
-                            }
-                        }, 300);
-                    } else {
-                        alert('Failed to delete: ' + (data.message || 'Unknown error'));
+document.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', function() {
+        if (!confirm('Delete this prediction?')) {
+            return;
+        }
+        const id = this.getAttribute('data-id');
+        const row = this.closest('tr');
+
+        fetch('/api/delete/' + id, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    row.remove();
+                    // reload so the "no predictions" message shows
+                    if (document.querySelectorAll('tbody tr').length == 0) {
+                        location.reload();
                     }
-                })
-                .catch(err => alert('Error: ' + err.message));
-            }
-        });
+                } else {
+                    alert('Could not delete');
+                }
+            })
+            .catch(err => alert('Error: ' + err));
     });
 });
 </script>
-
-<style>
-.date-badge {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-family: monospace;
-}
-
-.score-value {
-    font-weight: 600;
-    color: var(--primary-light);
-}
-
-.category-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.category-excellent {
-    background: linear-gradient(135deg, var(--success), #059669);
-    color: white;
-}
-
-.category-good {
-    background: linear-gradient(135deg, var(--secondary), #0891b2);
-    color: white;
-}
-
-.category-average {
-    background: linear-gradient(135deg, var(--warning), #d97706);
-    color: white;
-}
-
-.category-poor {
-    background: linear-gradient(135deg, var(--danger), #dc2626);
-    color: white;
-}
-
-.btn-delete {
-    background: rgba(239, 68, 68, 0.1);
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    color: var(--danger);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.btn-delete:hover {
-    background: rgba(239, 68, 68, 0.2);
-    transform: scale(1.05);
-}
-
-.empty-icon {
-    font-size: 4rem;
-    color: var(--text-muted);
-    opacity: 0.5;
-}
-</style>
-{% endblock %}                                                     
+{% endblock %}
